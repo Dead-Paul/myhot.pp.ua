@@ -1,6 +1,8 @@
 from configparser import ConfigParser
 from telebot import TeleBot, types
 from typing import TypedDict
+from flask import Flask, request
+import threading
 import json
 import io
 
@@ -55,8 +57,10 @@ def parse_callback(callback: types.CallbackQuery):
         print("Looks like we have multiple errors in DB and retrying doesn't help...")
 
 
-def send_to_aprove(anime_json_path: str, user_name: str|None, user_id: int|None = None) -> None:
-    anime_json: list[AnimeDict] = json.loads(bot.download_file(anime_json_path))["AnimeInfo"]
+def send_to_aprove(anime_json: str|list[AnimeDict], user_name: str|None, user_id: int|None = None) -> None:
+    if isinstance(anime_json, str):
+        anime_json = json.loads(bot.download_file(anime_json))["AnimeInfo"]
+    assert isinstance(anime_json, list)
     for anime in anime_json:
         archive_message: types.Message = bot.send_document(ADMIN_ID, types.InputFile(io.BytesIO(json.dumps(anime).encode()),
                                                            f"{anime['title']}.json"), disable_notification=True)
@@ -81,4 +85,14 @@ def document_handler(message: types.Message) -> None:
     else:
         bot.send_message(message.chat.id, "I can handle JSON files ONLY!")
 
-bot.polling(none_stop = True)
+app = Flask(__name__)
+
+@app.route("/add-anime", methods=["POST"])
+def add_anime_handler():
+    assert request.json is not None
+    anime_json: list[AnimeDict] = request.get_json()["AnimeInfo"]
+    send_to_aprove(anime_json, request.get_json().get("user-name"))
+    return "Waiting for approval...", 200
+
+threading.Thread(target=lambda: bot.polling(none_stop = True)).start()
+app.run()
