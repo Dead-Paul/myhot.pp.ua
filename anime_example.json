@@ -1,0 +1,12 @@
+{
+  "AnimeInfo": [
+    {
+      "title": "AnimeTitle",
+      "note": "Note to anime title, if no - null"
+    },
+    {
+      "title": "Another AnimeTitle",
+      "note": null
+    }
+  ]
+}
